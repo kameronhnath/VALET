@@ -100,7 +100,7 @@ def get_options():
 
     should_err = False
     if not options.debug:
-	sys.tracebacklimit = 0 
+        sys.tracebacklimit = 0 
     if not options.assembly_filenames:
         error("You need to provide a fasta file with -a")
         should_err = True
@@ -143,7 +143,7 @@ def main():
 
         # Get the current assembly's name.
         assembly_name = assembly_names[counter % len(assembly_names)] \
-                if options.assembly_names else 'asm_' + str(counter)
+            if options.assembly_names else 'asm_' + str(counter)
         final_assembly_names.append(assembly_name)
 
         # Create the assembly output directory.
@@ -186,8 +186,6 @@ def main():
         results(options.coverage_file)
 
         contig_abundances = get_contig_abundances(options.coverage_file)
-
-        # Calculate assembly probability.
 
         # If more thread, partition coverage file.
         if options.threads > 1:
@@ -716,13 +714,13 @@ def bin_reads_by_coverage(options, sam_filename, contig_abundances, output_dir):
 
         ## check for missing contigs not present on abundance file
         ## This is potentially due to only a few reads mapping to the contig        
-	##if tuple[2] not in contig_abundances.keys():
-	  #  abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis")
+    ##if tuple[2] not in contig_abundances.keys():
+      #  abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis")
             #line = sam_file.readline()
-	    #continue
+        #continue
 
         if tuple[2] != '*':
-	    if tuple[2] not in contig_abundances.keys():
+            if tuple[2] not in contig_abundances.keys():
                 abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis\n")
                 line = sam_file.readline()
                 continue
