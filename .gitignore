@@ -85,5 +85,6 @@ target/
 *.out
 *.synctex.gz
 
-# Example data output
+# Example data
 output/*
+SRR36426761.fastq

@@ -2,22 +2,19 @@
 Pipeline for evaulating metagenomic assemblies.
 
 ## Prerequisites
-VALET requires the following tools to function correctly.
-* [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) (Tested with version 2.2.4)
-* [samtools](http://www.htslib.org) (Tested with version 1.2)
-* [bedtools](http://bedtools.readthedocs.org/en/latest/) (Tested with version 2.24.0)
-* Python2 (Tested with 2.7.9)
-* [numpy](http://www.numpy.org) (Tested with version 1.9.2)
-* [scipy](http://www.scipy.org/) (Tested with version ???)
-* [REAPR](https://www.sanger.ac.uk/resources/software/reapr/) (*OPTIONAL: REAPR usage can be disabled with --skip-reapr argument*)
-
-Please note, if REAPR throws an error, then you need to install the following PERL libraries:
-* File::Basename
-* File::Copy
-* File::Spec
-* File::Spec::Link
-* Getopt::Long
-* List::Util
+Installing prequisite tools:
+```
+conda create -n valet \
+  -c conda-forge \
+  -c bioconda \
+  python=2.7 \
+  bowtie2=2.5.4 \
+  bedtools=2.31.1 \
+  samtools=1.12 \
+  numpy=1.16.5 \
+  scipy=1.2.0 \
+  libgfortran=3.0.0
+```
 
 ## Installing VALET
 Once the repository has been cloned, to install the required tools run the command:
@@ -33,7 +30,7 @@ export VALET=`pwd`/src/py/
 Included is a small set of test assemblies of *Candidatus Carsonella ruddii.* In addition to the reference genome, each assembly contains a mis-assembly: a duplication (test/c_rudii_dup.fna), a relocation (test/c_rudii_reloc.fna), and a duplication + relocation (test/c_rudii_reloc_dup.fna). Test the installation by running the following command:
 
 ```
-$VALET/valet.py -a test/c_rudii_reference.fna,test/c_rudii_dup.fna,test/c_rudii_relocation.fna,test/c_rudii_reloc_dup.fna -1 test/lib1.1.fastq -2 test/lib1.2.fastq --assembly-names reference,duplication,relocation,reloc-dup
+python src/py/valet.py -a test/c_rudii_reference.fna,test/c_rudii_dup.fna,test/c_rudii_relocation.fna,test/c_rudii_reloc_dup.fna -1 test/lib1.1.fastq -2 test/lib1.2.fastq --assembly-names reference,duplication,relocation,reloc-dup --skip-reapr
 ```
 ```
 ###########################################################################
@@ -127,62 +124,21 @@ VALET produces batch scripts to visualize the assemblies and flagged regions in 
 ![IGV](http://cbcb.umd.edu/~cmhill/files/reloc_dup.png)
 
 
-## Example usages
+## Running VALET with example metagenomic assembly
 
-TODO
-
-
-## Tutorial: Finding misassemblies in the Human Microbiome Project
-
-Here we show how VALET can be used to find misassemblies in the Human Microbiome Project (http://www.hmpdacc.org/).
-
-Before you continue, make sure the following tools are installed:
-* **VALET**
-* **git**
-* GNU tools:
-    * **wget** (can also use **curl**)
-    * **tar**
-* **Integrative Genomics View
-### Downloading HMP sample SRS014465
-```
-mkdir samples
-cd samples
-
-# Download reads
-wget ftp://public-ftp.hmpdacc.org/Illumina/vaginal_introitus/SRS014465.tar.bz2
-tar xvjf SRS014465.tar.bz2
-cd ..
-
-# Download assembly
-wget ftp://public-ftp.hmpdacc.org/HMASM/PGAs/vaginal_introitus/SRS014465.scaffolds.fa.bz2
-tar xvjf SRS014465.scaffolds.fa.bz2
-
-# Export sample directory to a path variable
-export HMP_SAMPLE=`pwd`/SRS014465/
-
-cd ..
-```
-
-### Running VALET
+Example data was obtained from the NCBI SRA with run accession number SRR36426761. Reads were assembled using megahit and a small subset of the resulting contigs is provided under the example/ directory. To redownload the raw reads:
 
 ```
-$VALET/pipeline.py -a $HMP_SAMPLE/SRS014465.scaffolds.fa \
-    -1 $HMP_SAMPLE/SRS014465.denovo_duplicates_marked.trimmed.1.fastq \
-    -2 $HMP_SAMPLE/SRS014465.denovo_duplicates_marked.trimmed.2.fastq \
-    -o SRS014465_valet --threads 32
+cd example
+fasterq-dump SRR36426761
 ```
 
+Then to run valet on the example data:
+
 ```
-INFO:    Coverage file not provided, will create one.
----------------------------------------------------------------------------
-STEP:    FILTERING ASSEMBLY CONTIGS LESS THAN 1000 BPs
-RESULTS:         SRS014465_valet/filtered_assembly.fasta
----------------------------------------------------------------------------
-STEP:    ALIGNING READS
-...
+python src/py/valet.py -a example/subset.fa -r example/SRR36426761.fastq  --assembly-names megahit --skip-reapr -o output/
 ```
 
-Now you are free to explore the flagged regions!
 
 ## Options
 ```
@@ -249,4 +205,6 @@ Options:
                         gff formatted file containing orfs
   --kmer=KMER_LENGTH    kmer length used for abundance estimation
   --skip-reapr
+  --low-cpu             Preset for running valet on low CPU systems.
+  --debug
 ```

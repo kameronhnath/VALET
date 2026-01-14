@@ -93,7 +93,8 @@ def get_options():
         "--orf-file", dest="orf_file", help="gff formatted file containing orfs")
     parser.add_option("--kmer", dest="kmer_length", help="kmer length used for abundance estimation",
                       default="15")
-    parser.add_option("--skip-reapr", dest="skip_reapr", default=False, action='store_true')
+    parser.add_option("--skip-reapr", dest="skip_reapr", default=False, action='store_true')    
+    parser.add_option("--low-cpu", dest="low_cpu", default=False, action='store_true', help="Preset for running valet on low CPU systems.")
     parser.add_option("--debug", dest="debug", default=False, action='store_true')
 
     (options, args) = parser.parse_args()
@@ -419,7 +420,12 @@ def run_bowtie2(options, assembly_filename, output_dir, output_sam):
 
     bowtie2_args = ""
     bowtie2_unaligned_check_args = ""
-    bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
+    if options.low_cpu:
+        bowtie2_args = "-x " + assembly_index + read_type + " -U " \
+                + options.reads_filenames + " --sensitive " \
+                + " --reorder -p 1 -k 2 --un " + unaligned_file
+    else:
+        bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.reads_filenames + " --very-sensitive -a "\
                 + " --reorder -p " + options.threads + " --un " + unaligned_file
 
