@@ -93,14 +93,15 @@ def get_options():
         "--orf-file", dest="orf_file", help="gff formatted file containing orfs")
     parser.add_option("--kmer", dest="kmer_length", help="kmer length used for abundance estimation",
                       default="15")
-    parser.add_option("--skip-reapr", dest="skip_reapr", default=False, action='store_true')
+    parser.add_option("--skip-reapr", dest="skip_reapr", default=False, action='store_true')    
+    parser.add_option("--low-cpu", dest="low_cpu", default=False, action='store_true', help="Preset for running valet on low CPU systems.")
     parser.add_option("--debug", dest="debug", default=False, action='store_true')
 
     (options, args) = parser.parse_args()
 
     should_err = False
     if not options.debug:
-	sys.tracebacklimit = 0 
+        sys.tracebacklimit = 0 
     if not options.assembly_filenames:
         error("You need to provide a fasta file with -a")
         should_err = True
@@ -143,7 +144,7 @@ def main():
 
         # Get the current assembly's name.
         assembly_name = assembly_names[counter % len(assembly_names)] \
-                if options.assembly_names else 'asm_' + str(counter)
+            if options.assembly_names else 'asm_' + str(counter)
         final_assembly_names.append(assembly_name)
 
         # Create the assembly output directory.
@@ -186,8 +187,6 @@ def main():
         results(options.coverage_file)
 
         contig_abundances = get_contig_abundances(options.coverage_file)
-
-        # Calculate assembly probability.
 
         # If more thread, partition coverage file.
         if options.threads > 1:
@@ -421,7 +420,12 @@ def run_bowtie2(options, assembly_filename, output_dir, output_sam):
 
     bowtie2_args = ""
     bowtie2_unaligned_check_args = ""
-    bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
+    if options.low_cpu:
+        bowtie2_args = "-x " + assembly_index + read_type + " -U " \
+                + options.reads_filenames + " --sensitive " \
+                + " --reorder -p 1 -k 2 --un " + unaligned_file
+    else:
+        bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.reads_filenames + " --very-sensitive -a "\
                 + " --reorder -p " + options.threads + " --un " + unaligned_file
 
@@ -716,13 +720,13 @@ def bin_reads_by_coverage(options, sam_filename, contig_abundances, output_dir):
 
         ## check for missing contigs not present on abundance file
         ## This is potentially due to only a few reads mapping to the contig        
-	##if tuple[2] not in contig_abundances.keys():
-	  #  abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis")
+    ##if tuple[2] not in contig_abundances.keys():
+      #  abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis")
             #line = sam_file.readline()
-	    #continue
+        #continue
 
         if tuple[2] != '*':
-	    if tuple[2] not in contig_abundances.keys():
+            if tuple[2] not in contig_abundances.keys():
                 abundance_log_file.write(tuple[2] + "not in contig abundance file read " +  tuple[0] +  " excluded from coverage and read pair analysis\n")
                 line = sam_file.readline()
                 continue
