@@ -132,6 +132,8 @@ def main():
     global COMMANDS_FILE
     COMMANDS_FILE = open(options.output_dir + '/commands', 'w')
 
+    # 
+
     # For each assembly:
     assemblies = options.assembly_filenames.split(",")
     assembly_names = options.assembly_names.split(
@@ -189,7 +191,7 @@ def main():
         contig_abundances = get_contig_abundances(options.coverage_file)
 
         # If more thread, partition coverage file.
-        if options.threads > 1:
+        if int(options.threads) > 1:
             step("PARTITIONING COVERAGE FILE")
             run_split_pileup(options, pileup_file)
 
@@ -422,8 +424,8 @@ def run_bowtie2(options, assembly_filename, output_dir, output_sam):
     bowtie2_unaligned_check_args = ""
     if options.low_cpu:
         bowtie2_args = "-x " + assembly_index + read_type + " -U " \
-                + options.reads_filenames + " --sensitive " \
-                + " --reorder -p 1 -k 2 --un " + unaligned_file
+                + options.reads_filenames \
+                + " --reorder -p 1 --un " + unaligned_file
     else:
         bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.reads_filenames + " --very-sensitive -a "\

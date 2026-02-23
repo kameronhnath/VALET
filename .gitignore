@@ -88,3 +88,5 @@ target/
 # Example data
 output/*
 SRR36426761.fastq
+sequences/*
+new_env/
