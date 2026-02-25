@@ -11,31 +11,44 @@ def main():
 
     parser.add_argument(
         "-1",
-        dest="first_mates",
-        help="First mates"
+        dest = "first_mates",
+        help = "First mates"
     )
 
     parser.add_argument(
         "-2",
-        dest="second_mates",
-        help="Second mates"
+        dest = "second_mates",
+        help = "Second mates"
     )
 
     parser.add_argument(
-        "-bam",
-        dest="bam_file",
-        help="BAM file"
+        "-bam", "--bam",
+        dest = "bam_file",
+        help = "BAM file"
     )
 
     parser.add_argument(
-        "-o",
-        dest="out_file",
-        help="Output file"
+        "-o", "--output",
+        dest = "out_file",
+        help = "Output file",
+        default = "matepair_errors.bed"
+    )
+
+    parser.add_argument(
+        "--binsize",
+        dest = "bin_size",
+        help = "How many base pairs the bins that contain the errors spans",
+        default = 300
+    )
+
+    parser.add_argument(
+        "-s","support",
+        dest = "support",
+        help = "Number of errors in a bin to constitute a suspicious region",
+        default = 10
     )
 
     args = parser.parse_args()
-
-    target_qname = "SRR5058924.9409599"
 
     pairs = {}
     unruly_reads = []
@@ -130,18 +143,17 @@ def main():
 
     # Bin outliers
     bins = defaultdict(int)
-    bin_size = 100
     for read in unruly_reads:
         contig = read[0]
-        bin_start = (read[1] // bin_size) * bin_size
+        bin_start = (read[1] // args.bin_size) * args.bin_size
         bins[(contig,bin_start)] += 1
 
     # Write results to bed file
-    with open("matepair_errors.bed", "w") as out_file:
+    with open(args.outfile, "w") as out_file:
         for (contig, start), support in bins.items():
-            if support > 10:
+            if support > args.support:
                 out_file.write(
-                    f"{contig}\t{start}\t{start+bin_size}\tMatePairError\n"
+                    f"{contig}\t{start}\t{start + args.bin_size}\tMatePairError\n"
                 )
 
 if __name__=="__main__":
