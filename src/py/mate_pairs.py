@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import pysam
 import argparse
 import numpy as np
@@ -42,10 +43,11 @@ def main():
     )
 
     parser.add_argument(
-        "-s","support",
+        "-s","--support",
         dest = "support",
         help = "Number of errors in a bin to constitute a suspicious region",
-        default = 10
+        default = 10,
+        type=int
     )
 
     args = parser.parse_args()
@@ -149,7 +151,7 @@ def main():
         bins[(contig,bin_start)] += 1
 
     # Write results to bed file
-    with open(args.outfile, "w") as out_file:
+    with open(args.out_file, "w") as out_file:
         for (contig, start), support in bins.items():
             if support > args.support:
                 out_file.write(

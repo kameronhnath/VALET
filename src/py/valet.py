@@ -207,8 +207,8 @@ def main():
         step("BREAKPOINT")
         results_filenames.append(run_breakpoint_finder(options, assembly, unaligned_dir, outputBreakpointDir))
 
-        # Run REAPR/mate-pair happiness.
-        if options.first_mates and options.second_mates and not options.skip_reapr:
+        # Run mate-pair happiness
+        if options.first_mates and options.second_mates:
             step("IDENTIFYING PAIRED-READ INCONSISTENCIES")
 
             # First partition the SAM file into bins based on coverage.
@@ -217,22 +217,22 @@ def main():
             # Bin the assembled contigs by coverage.
             bin_assembly_by_coverage(options, assembly, contig_abundances, output_dir)
 
-            # Run REAPR on each individual bin.
-            reapr_results = []
+            # Run mate pair checker on each individual bin.
+            mate_pair_results = []
             for bin in bin_paths:
-                result = run_reapr(options, bin)
+                result = run_mate_pair_check(options, bin)
                 if result:
-                    reapr_results.append(result)
+                    mate_pair_results.append(result)
 
-            # Concat all REAPR results and sort them.
-            result_file = open(output_dir + '/breakpoint/reapr.bed', 'w')
+            # Concat all results and sort them.
+            result_file = open(output_dir + '/breakpoint/mate_errors.bed', 'w')
             call_arr = ["cat"]
-            call_arr.extend(reapr_results)
-            run(call_arr, stdout=result_file)
+            call_arr.extend(mate_pair_results)
+            run(call_arr, stdout=result_file, to_print=False)
 
-            reapr_bed = output_dir + '/reapr.bed'
-            run_bedtools_sort(result_file.name, reapr_bed)
-            results(reapr_bed)
+            mates_bed = output_dir + '/mate_pairs.bed'
+            run_bedtools_sort(result_file.name, mates_bed)
+            results(mates_bed)
             results_filenames.append(result_file.name)
 
         # Generate summary files.
@@ -425,7 +425,7 @@ def run_bowtie2(options, assembly_filename, output_dir, output_sam):
     if options.low_cpu:
         bowtie2_args = "-x " + assembly_index + read_type + " -U " \
                 + options.reads_filenames \
-                + " --reorder -p 1 --un " + unaligned_file
+                + " --reorder -p 4 --un " + unaligned_file
     else:
         bowtie2_args = "-a -x " + assembly_index + read_type + " -U "\
                 + options.reads_filenames + " --very-sensitive -a "\
@@ -754,11 +754,6 @@ def bin_reads_by_coverage(options, sam_filename, contig_abundances, output_dir):
 
     # Write out each read to there correct bin folder.
     path_to_bins = []
-    first_mates_writer = None
-    second_mates_writer = None
-
-    curr_abun = None
-    prev_abun = None
 
     abundance_read_file = open(abundance_read_filename + '.sorted', 'r')
     """
@@ -770,62 +765,108 @@ def bin_reads_by_coverage(options, sam_filename, contig_abundances, output_dir):
     7       HWUSI-EAS626_102891784:1:102:10765:10655/1      CAGCAATCCAGTCTTTAACTTCTGGGTGCCATGCAGGATGCGGTATATAAACCTGTCCAGCTTCCCACATTGGAGACACTGACGCCGCACG     GGGGGGGGGGGGGGGGGGGGGGGGAECADEFFFFEGGGGGFGGEEAFFFDFGGGFEGEGEGBEGEGEEEDEE?EBEDEEEBCDBCECB=A#
     7       HWUSI-EAS626_102891784:1:102:10765:10655/2      GCTTTGCAGTAGCGTCAGGATACATGCGGGACATGGCTCTAATAGCGTCTAGCGTCTCAGTAAAGCTTAAACGCTTGTGGCACCAGTTAGGGCGCAGGTA    >>>?=,?:D?D?CCCBCDEF5BEEEFGDGEFCD?EGGEBGFEGGGGFFGGEGGGFGGGDGFGFGGEEEE?AFFBGFFFFEECAFFGGG=FFFEGGDFGGG
     """
-    prev_line = abundance_read_file.readline()
-    curr_line = abundance_read_file.readline()
-    prev_tuple = prev_line.split("\t")
-    curr_tuple = curr_line.split("\t")
-    curr_abun = curr_tuple[0]
+
+    
+    pairs = {}
+    bin_files = {}
 
     # Sometimes the sequence files are missing mates, we need to remove any unpaired sequence.
-    while True:
+    for line in abundance_read_file:
 
-        # If we're below the minimum required coverage, ignore the contig.
-        if int(curr_abun) < options.min_coverage:
-            # Only read one new line.
-            curr_line = abundance_read_file.readline()
-            if not curr_line: break
-            curr_tuple = curr_line.split("\t")
+        # Get all elements of the line
+        line_parts = line.strip().split("\t")
+        abundance = line_parts[0]
 
-            prev_abun = prev_tuple[0]
-            curr_abun = curr_tuple[0]
+        # Remove any spaces or characters that come before the read number
+        readname = line_parts[1]
+        readname = readname.split()[0]
+        readname = readname.split('/')[0]
+        
+        sequence = line_parts[2]
+        quality_score = line_parts[3]
+
+        # Skip the read if it's below the min coverage
+        if int(abundance) < options.min_coverage: 
             continue
 
-        if prev_abun is None or curr_abun != prev_abun:
-            # Setup the writers.
-            os.makedirs(output_dir + '/bins/' + curr_abun)
-            path_to_bins.append(output_dir + '/bins/' + curr_abun + '/')
-            first_mates_writer = open(output_dir + '/bins/' + curr_abun + '/lib_1.fq', 'w')
-            second_mates_writer = open(output_dir + '/bins/' + curr_abun + '/lib_2.fq', 'w')
+        # Initialize the bin files and directory if needed
+        if abundance not in bin_files:
+            bin_directory = os.path.join(output_dir, 'bins', abundance)
+            os.makedirs(bin_directory, exist_ok=True)
+            path_to_bins.append(bin_directory + '/')
 
-        if prev_tuple[1].strip('/1') == curr_tuple[1].strip('/2'):
-            first_mates_writer.write('@' + prev_tuple[1] + '\n' + prev_tuple[2] + '\n+\n' + prev_tuple[3])
-            second_mates_writer.write('@' + curr_tuple[1] + '\n' + curr_tuple[2] + '\n+\n' + curr_tuple[3])
-
-            prev_abun = prev_tuple[0]
-
-            # Read two new lines.
-            prev_line = abundance_read_file.readline()
-            if not prev_line: break
-
-            curr_line = abundance_read_file.readline()
-            if not curr_line: break
-
-            prev_tuple = prev_line.split("\t")
-            curr_tuple = curr_line.split("\t")
-
-            curr_abun = curr_tuple[0]
+            f1 = open(os.path.join(bin_directory, 'lib_1.fq'), 'w')
+            f2 = open(os.path.join(bin_directory, 'lib_2.fq'), 'w')
+            bin_files[abundance] = (f1, f2)
+        
+        # Add the read to the pairs dict if it is the first one found, otherwise add the pair to the bin files
+        if readname not in pairs:
+            pairs[readname] = (abundance, sequence, quality_score)
         else:
-            prev_tuple = curr_tuple
+            prev_abundance, prev_sequence, prev_quality = pairs.pop(readname)
 
-            # Only read one new line.
-            curr_line = abundance_read_file.readline()
-            if not curr_line: break
-            curr_tuple = curr_line.split("\t")
+            f1, f2 = bin_files[prev_abundance]
 
-            prev_abun = prev_tuple[0]
-            curr_abun = curr_tuple[0]
+            f1.write(f"@{readname}/1\n{prev_sequence}\n+\n{prev_quality}\n")
+            f2.write(f"@{readname}/2\n{sequence}\n+\n{quality_score}\n")
+
+    # Close file writers
+    for f1, f2 in bin_files.values():
+        f1.close()
+        f2.close()
 
     return path_to_bins
+
+def run_mate_pair_check(options, bin_path):
+
+    support = os.path.basename(os.path.normpath(bin_path))
+
+    std_err_file = open(bin_path + 'stand.err','a')
+    std_out_file = open(bin_path + 'stand.out','a')
+
+    # Index the bin
+    call_arr = [
+        "bwa", "index", bin_path + "/contigs.fasta"
+    ]
+    run(call_arr, stdout=std_out_file, stderr=std_err_file, to_print=False)
+
+    # Generate the alignment
+    call_arr = [
+        "bwa",
+        "mem",
+        bin_path + "/contigs.fasta",
+        bin_path + "/lib_1.fq",
+        bin_path + "/lib_2.fq"
+    ]
+
+    with open(bin_path + "/align.sam", "w") as sam_out, \
+        open(bin_path + "/bwa.log", "w") as bwa_log:
+            run(call_arr, stdout=sam_out, stderr=bwa_log, to_print=False)
+    
+    # Convert to bam
+    call_arr = [
+        "samtools",
+        "sort",
+        "-o", bin_path + "/align.bam",
+        bin_path + "/align.sam"
+    ]
+    run(call_arr)
+
+    call_arr = [
+        os.path.join(BASE_PATH, "src/py/mate_pairs.py"), 
+        "-1", bin_path + '/lib_1.fq', 
+        "-2", bin_path + '/lib_2.fq', 
+        "-bam", bin_path + '/align.bam',
+        "-o", bin_path + "mate_errors.bed",
+        "-s", support
+    ]
+    run(call_arr, stdout=std_out_file, stderr=std_err_file)
+    if os.path.exists(bin_path + "mate_errors.bed"):
+        return bin_path + "mate_errors.bed"
+    else:
+        warning("Mate pair checker failed on bin: " + bin_path)
+        return None
+
 
 
 def run_reapr(options, bin_path):
@@ -978,9 +1019,9 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     table_file = open(table_filename, 'w')
 
     if orf:
-        table_file.write("contig_name\tcontig_length\tabundance\torf_low_cov\torf_low_cov_bps\torf_high_cov\torf_high_cov_bps\torf_reapr\torf_reapr_bps\torf_breakpoints\torf_breakpoints_bps\n")
+        table_file.write("contig_name\tcontig_length\tabundance\torf_low_cov\torf_low_cov_bps\torf_high_cov\torf_high_cov_bps\torf_mate_error\torf_mate_error_bps\torf_breakpoints\torf_breakpoints_bps\n")
     else:
-        table_file.write("contig_name\tcontig_length\tabundance\tlow_cov\tlow_cov_bps\thigh_cov\thigh_cov_bps\treapr\treapr_bps\tbreakpoints\tbreakpoints_bps\n")
+        table_file.write("contig_name\tcontig_length\tabundance\tlow_cov\tlow_cov_bps\thigh_cov\thigh_cov_bps\tmate_error\tmate_error_bps\tbreakpoints\tbreakpoints_bps\n")
 
     prev_contig = None
     curr_contig = None
@@ -990,8 +1031,8 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     low_coverage_bps = 0
     high_coverage = 0
     high_coverage_bps = 0
-    reapr = 0
-    reapr_bps = 0
+    mate_error = 0
+    mate_error_bps = 0
     breakpoints = 0
     breakpoints_bps = 0
 
@@ -1013,7 +1054,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
             # Output previous contig stats.
             table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + str(contig_abundances[prev_contig]) + '\t' + \
                 str(low_coverage) + '\t' + str(low_coverage_bps) + '\t' + str(high_coverage) + '\t' + \
-                str(high_coverage_bps) + '\t' + str(reapr) + '\t' + str(reapr_bps) + '\t' + str(breakpoints) + '\t' + \
+                str(high_coverage_bps) + '\t' + str(mate_error) + '\t' + str(mate_error_bps) + '\t' + str(breakpoints) + '\t' + \
                 str(breakpoints_bps) + '\n')
 
             processed_contigs.add(prev_contig)
@@ -1023,20 +1064,20 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
             low_coverage_bps = 0
             high_coverage = 0
             high_coverage_bps = 0
-            reapr = 0
-            reapr_bps = 0
+            mate_error = 0
+            mate_error_bps = 0
             breakpoints = 0
             breakpoints_bps = 0
 
             prev_contig = curr_contig
 
         # Process the current contig misassembly.
-        if misassembly[3] == 'REAPR':
+        if misassembly[3] == 'MatePairError':
             #if 'Warning' not in misassembly[8]:
             #    reapr += 1
             #    reapr_bps += (int(misassembly[4]) - int(misassembly[3]) + 1)
-            reapr += 1
-            reapr_bps += (int(misassembly[2]) - int(misassembly[1]) + 1)
+            mate_error += 1
+            mate_error_bps += (int(misassembly[2]) - int(misassembly[1]) + 1)
 
         elif misassembly[3] == 'Low_coverage':
             low_coverage += 1
@@ -1057,7 +1098,7 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
         # Output previous contig stats.
         table_file.write(prev_contig + '\t' + str(filtered_contig_lengths[prev_contig]) + '\t' + str(contig_abundances[prev_contig]) + '\t' + \
             str(low_coverage) + '\t' + str(low_coverage_bps) + '\t' + str(high_coverage) + '\t' + \
-            str(high_coverage_bps) + '\t' + str(reapr) + '\t' + str(reapr_bps) + '\t' + str(breakpoints) + '\t' + \
+            str(high_coverage_bps) + '\t' + str(mate_error) + '\t' + str(mate_error_bps) + '\t' + str(breakpoints) + '\t' + \
             str(breakpoints_bps) + '\n')
 
         processed_contigs.add(prev_contig)
@@ -1166,10 +1207,9 @@ def contig_reader(fasta_file):
     yield contig
 
 
-def run(command, stdout=sys.stdout, stderr=sys.stderr):
+def run(command, stdout=sys.stdout, stderr=sys.stderr, to_print=True):
     """ Run the command.
     """
-    #print('here!!')
 
     if COMMANDS_FILE:
         if stdout != sys.stdout:
@@ -1182,7 +1222,8 @@ def run(command, stdout=sys.stdout, stderr=sys.stderr):
             stderr_sht = ""
         COMMANDS_FILE.write(' '.join(command) + stdout_sht + stderr_sht + "\n")
         COMMANDS_FILE.flush()
-    print(BColors.OKBLUE + "COMMAND:\t" + BColors.ENDC, ' '.join(command), file=sys.stderr)
+    if to_print:
+        print(BColors.OKBLUE + "COMMAND:\t" + BColors.ENDC, ' '.join(command), file=sys.stderr)
 
     try:
         subprocess.check_call(command, stdout=stdout, stderr=stderr)
