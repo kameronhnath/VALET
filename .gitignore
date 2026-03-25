@@ -87,4 +87,8 @@ target/
 
 # Example data
 output/*
-SRR36426761.fastq
+sequences/*
+new_env/
+run_it.sh
+run_test.sh
+download_samples.sh

@@ -13,7 +13,9 @@ conda create -n valet \
   samtools=1.12 \
   numpy=1.16.5 \
   scipy=1.2.0 \
-  libgfortran=3.0.0
+  libgfortran=3.0.0 \
+  pysam \
+  bwa
 ```
 
 ## Installing VALET
