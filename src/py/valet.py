@@ -93,7 +93,6 @@ def get_options():
         "--orf-file", dest="orf_file", help="gff formatted file containing orfs")
     parser.add_option("--kmer", dest="kmer_length", help="kmer length used for abundance estimation",
                       default="15")
-    parser.add_option("--skip-reapr", dest="skip_reapr", default=False, action='store_true')    
     parser.add_option("--low-cpu", dest="low_cpu", default=False, action='store_true', help="Preset for running valet on low CPU systems.")
     parser.add_option("--debug", dest="debug", default=False, action='store_true')
 
@@ -114,8 +113,6 @@ def get_options():
 
     if options.first_mates and options.second_mates:
         options.reads_filenames = options.first_mates + ',' + options.second_mates
-    else:
-        options.skip_reapr = True
 
     # Window size must be odd and non-negative.
     if int(options.window_size) < 0 or int(options.window_size) % 2 == 0:
@@ -158,8 +155,7 @@ def main():
 
         results_filenames = []
 
-        # First run Reapr's facheck to check if the filenames are acceptable.
-        facheck_assembly = assembly if options.skip_reapr else run_reapr_facheck(assembly, output_dir)
+        facheck_assembly = assembly
 
         # Filter assembled contigs by length.
         step("FILTERING ASSEMBLY CONTIGS LESS THAN " + str(options.min_contig_length) + ' BPs')
@@ -256,25 +252,6 @@ def main():
     bold("GENERATING ASSEMBLY COMPARISON PLOTS")
     generate_comparison_plot(options, final_assembly_names)
     results(options.output_dir + '/comparison_plots.pdf')
-
-
-def run_reapr_facheck(assembly, output_dir):
-    """ Run reapr's facheck on the assembly.
-
-    Args:
-        assembly: Assembly FASTA filename.
-        output_dir: Output directory for a specific assembly.
-
-    Returns:
-        The filename of the facheck'd assembly.
-    """
-
-    facheck_assembly = output_dir + '/assembly_facheck'
-    ensure_dir(facheck_assembly)
-    call_arr = ["reapr", "facheck", assembly, facheck_assembly]
-    run(call_arr)
-    results(facheck_assembly)
-    return facheck_assembly + '.fa'
 
 
 def filter_short_contigs(fasta_filename, min_contig_length, filtered_fasta_filename):
@@ -663,6 +640,7 @@ def bin_assembly_by_coverage(options, assembly_filename, contig_abundances, outp
         call_arr = ['sort', '-nk1,1', '-k2,2', '-T', './', abundance_contig_filename, '-o', abundance_contig_filename + '.sorted']
         subprocess.call(call_arr)
 
+
     prev_abun = None
     curr_abun = None
 
@@ -819,7 +797,9 @@ def bin_reads_by_coverage(options, sam_filename, contig_abundances, output_dir):
 
 def run_mate_pair_check(options, bin_path):
 
+    # Calculate the support needed to find an error region using the bin path - which is also the coverage
     support = os.path.basename(os.path.normpath(bin_path))
+    support = math.ceil(int(support) / 1.5)
 
     std_err_file = open(bin_path + 'stand.err','a')
     std_out_file = open(bin_path + 'stand.out','a')
@@ -830,7 +810,7 @@ def run_mate_pair_check(options, bin_path):
     ]
     run(call_arr, stdout=std_out_file, stderr=std_err_file, to_print=False)
 
-    # Generate the alignment
+    # Generate the alignment using bwa
     call_arr = [
         "bwa",
         "mem",
@@ -850,66 +830,22 @@ def run_mate_pair_check(options, bin_path):
         "-o", bin_path + "/align.bam",
         bin_path + "/align.sam"
     ]
-    run(call_arr)
+    run(call_arr, to_print=False)
 
+    # Run the mate pair checker file
     call_arr = [
         os.path.join(BASE_PATH, "src/py/mate_pairs.py"), 
         "-1", bin_path + '/lib_1.fq', 
         "-2", bin_path + '/lib_2.fq', 
         "-bam", bin_path + '/align.bam',
         "-o", bin_path + "mate_errors.bed",
-        "-s", support
+        "-s", str(support)
     ]
-    run(call_arr, stdout=std_out_file, stderr=std_err_file)
+    run(call_arr, stdout=std_out_file, stderr=std_err_file, to_print=False)
     if os.path.exists(bin_path + "mate_errors.bed"):
         return bin_path + "mate_errors.bed"
     else:
         warning("Mate pair checker failed on bin: " + bin_path)
-        return None
-
-
-
-def run_reapr(options, bin_path):
-    """ Run the REAPR pipeline on the passed in bin path.
-
-    Args:
-        options: Command line arguments.
-        bin_path: Binned paired reads to run REAPR on.
-        assembly_filename: Assembly FASTA filename.
-    """
-
-    std_err_file = open(bin_path + '/std_err.log','a')
-    call_arr = ['reapr', 'smaltmap',\
-            '-n', options.threads,\
-            bin_path + '/contigs.fasta',\
-            bin_path + '/lib_1.fq',\
-            bin_path + '/lib_2.fq',\
-            bin_path + '/align.bam']
-    run(call_arr, stdout=std_err_file, stderr=std_err_file)
-
-    call_arr = ['reapr', 'pipeline',\
-            bin_path + '/contigs.fasta',\
-            bin_path + '/align.bam',\
-            bin_path + '/reapr']
-    run(call_arr, stdout=std_err_file, stderr=std_err_file)
-
-    call_arr = ['gunzip', bin_path + '/reapr/03.score.errors.gff.gz']
-    run(call_arr)
-
-    if os.path.exists(bin_path + '/reapr/03.score.errors.gff'):
-        # Convert the GFF file to bed.
-        with open(bin_path + '/reapr/03.score.errors.gff', 'r') as reapr_gff, \
-                open(bin_path + '/reapr.bed', 'w') as reapr_bed:
-            #C103037 REAPR   Frag_cov        286     345     0.0166667       .       .       Note=Error: Fragment coverage too low;color=15
-            for entry in reapr_gff:
-                tuple = entry.strip().split('\t')
-                if 'Warning' not in tuple[8]:
-                    reapr_bed.write(tuple[0] + '\t' + tuple[3] + '\t' + tuple[4] + '\t' + 'REAPR\n')
-
-        results(bin_path + '/reapr.bed')
-        return bin_path + '/reapr.bed'
-    else:
-        warning("REAPR failed on bin: " + bin_path)
         return None
 
 
@@ -1039,11 +975,6 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
     processed_contigs = set()
 
     for misassembly in misassemblies:
-        """
-        contig00001     REAPR   Read_orientation        88920   97033   .       .       .       Note=Warning: Bad read orientation;colour=1
-        contig00001     REAPR   FCD     89074   90927   0.546142        .       .       Note=Error: FCD failure;colour=17
-        contig00001     DEPTH_COV       low_coverage    90818   95238   29.500000       .       .       low=30.000000;high=70.000000;color=#7800ef
-        """
 
         curr_contig = misassembly[0]
 
@@ -1071,11 +1002,8 @@ def generate_summary_table(table_filename, all_contig_lengths, filtered_contig_l
 
             prev_contig = curr_contig
 
-        # Process the current contig misassembly.
+        # Process the current contig misassembly. Mate_error_bps is largely meaningless since mate pair errors are established with a specific bin width.
         if misassembly[3] == 'MatePairError':
-            #if 'Warning' not in misassembly[8]:
-            #    reapr += 1
-            #    reapr_bps += (int(misassembly[4]) - int(misassembly[3]) + 1)
             mate_error += 1
             mate_error_bps += (int(misassembly[2]) - int(misassembly[1]) + 1)
 

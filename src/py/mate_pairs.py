@@ -4,8 +4,6 @@ import argparse
 import numpy as np
 from collections import defaultdict
 
-#python src/py/mate_pairs.py -1 test/lib1.1.fastq -2 test/lib1.2.fastq -bam sequences/aln.bam
-
 def main():
 
     parser = argparse.ArgumentParser()
@@ -131,8 +129,8 @@ def main():
             del pairs[name]
     
     # Flag any outliers of library size
-    upper_bound = mean + sd
-    lower_bound = mean + sd
+    upper_bound = mean + 3*sd
+    lower_bound = mean - 3*sd
     median = np.median(dist_data)
     q1 = np.percentile(dist_data, 25)
     q3 = np.percentile(dist_data, 75)
@@ -141,7 +139,6 @@ def main():
         if distance < lower_bound or distance > upper_bound:
             unruly_reads.append([references[pair[0]], pair[1]])
             unruly_reads.append([references[pair[0]], pair[3]])
-    
 
     # Bin outliers
     bins = defaultdict(int)
