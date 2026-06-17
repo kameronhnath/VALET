@@ -7,10 +7,12 @@ include { CONTIG_LENGTHS } from './modules/contig_lengths.nf'
 include { RUN_SAMTOOLS } from './modules/samtools.nf'
 include { CONTIG_COVERAGE } from './modules/contig_coverage.nf'
 include { SPLIT_PILEUP } from './modules/split_pileup.nf'
-include { DEPTH_OF_COVERAGE ; MERGE_BEDS } from './modules/depth_of_coverage.nf'
-include { BREAKPOINT_SPLITTER ; BREAKPOINT_FINDER } from './modules/breakpoint.nf'
+include { DEPTH_OF_COVERAGE ; MERGE_BEDS_COVERAGE } from './modules/depth_of_coverage.nf'
+include { BREAKPOINT_SPLITTER ; BREAKPOINT_FINDER ; BREAKPOINT_BED_SORT } from './modules/breakpoint.nf'
 include { BIN_READS_AND_CONTIGS } from './modules/binning.nf'
-include { RUN_BWA ; SAM_TO_BAM } from './modules/mate_pair.nf'
+include { RUN_BWA ; SAM_TO_BAM ; MATE_PAIR_CHECKER ; MERGE_BEDS_MATE_ERROR } from './modules/mate_pair.nf'
+include { GENERATE_SUMMARY } from './modules/summary_table.nf'
+include { FIND_SUSPICIOUS_REGIONS } from './modules/suspicious_regions.nf'
 
 /*
  * Pipeline parameters
@@ -24,6 +26,8 @@ params {
     threads: Integer
     window_size: Integer
     breakpoint_bins: Integer
+    min_suspicious_regions: Integer
+    suspicious_flank_size: Integer
 }
 
 workflow {
@@ -52,7 +56,7 @@ workflow {
 
     merged_coverage_error_bed = DEPTH_OF_COVERAGE.out.coverage_errrors.collect()
 
-    MERGE_BEDS(merged_coverage_error_bed)
+    MERGE_BEDS_COVERAGE(merged_coverage_error_bed)
 
     BREAKPOINT_SPLITTER(RUN_BOWTIE.out.unaligned_reads)
 
@@ -64,6 +68,8 @@ workflow {
         params.threads,
         CONTIG_COVERAGE.out.coverage
     )
+
+    BREAKPOINT_BED_SORT(BREAKPOINT_FINDER.out.breakpoint_bins)
 
     BIN_READS_AND_CONTIGS(
         RUN_BOWTIE.out.sam,
@@ -79,31 +85,41 @@ workflow {
 
     SAM_TO_BAM(RUN_BWA.out)
     
-    bin_channel.join(SAM_TO_BAM.out).view()
+    bin_channel_merged = bin_channel.join(SAM_TO_BAM.out)
+
+    MATE_PAIR_CHECKER(bin_channel_merged, "${projectDir}/../src/py/mate_pairs.py")
+
+    MERGE_BEDS_MATE_ERROR(MATE_PAIR_CHECKER.out.collect())
+
+    GENERATE_SUMMARY(
+        MERGE_BEDS_COVERAGE.out.merged_bed,
+        BREAKPOINT_BED_SORT.out,
+        MERGE_BEDS_MATE_ERROR.out,
+        CONTIG_LENGTHS.out.contig_lengths,
+        CONTIG_COVERAGE.out.coverage,
+        FILTER_CONTIGS.out.contig_lengths
+    )
+
+    FIND_SUSPICIOUS_REGIONS(GENERATE_SUMMARY.out.summary_bed, params.suspicious_flank_size, params.min_suspicious_regions)
+
+    
 
     publish:
-    filtered_fasta = FILTER_CONTIGS.out.filtered_fasta
     index = RUN_BOWTIE.out.index
-    sam = RUN_BOWTIE.out.sam
     splits = BREAKPOINT_SPLITTER.out.breakpoint_reads
-    bins = BIN_READS_AND_CONTIGS.out.bins
+    summary = GENERATE_SUMMARY.out.summary_bed
 
 }
 
 output {
-    filtered_fasta {
-        path 'filtered_fasta'
-    }
+
     index {
         path 'index'
-    }
-    sam {
-        path 'sam'
     }
     splits {
         path 'splits'
     }
-    bins {
-        path 'bins'
+    summary {
+        path 'summary'
     }
 }

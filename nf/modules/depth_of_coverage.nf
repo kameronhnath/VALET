@@ -19,7 +19,7 @@ process DEPTH_OF_COVERAGE {
     """
 }
 
-process MERGE_BEDS {
+process MERGE_BEDS_COVERAGE {
 
     container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'
 
@@ -32,7 +32,6 @@ process MERGE_BEDS {
     script:
     """
     cat ${beds.join(' ')} \
-        | bedtools merge -i - \
         | bedtools sort -i - \
         > coverage.errors.merged.bed
     """

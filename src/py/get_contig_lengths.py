@@ -31,7 +31,6 @@ def main():
     sam_file = open(args.sam_filename, 'r')
 
     # Build dictionary of contig lengths.
-    contig_lengths = {}
     line = sam_file.readline()
     while line.startswith("@"):
 
@@ -40,8 +39,7 @@ def main():
             row = line.split()
             contig_name = row[1].split(':')[1]
             length = int(row[2].split(':')[1])
-            contig_lengths[contig_name] = length
-            outfile.write(str(contig_lengths[contig_name]) + '\t' + str(length) + '\n')
+            outfile.write(str(contig_name) + '\t' + str(length) + '\n')
 
         line = sam_file.readline()
 

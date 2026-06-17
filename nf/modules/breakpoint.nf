@@ -48,3 +48,19 @@ process BREAKPOINT_FINDER {
         --output breakpoint/
     """
 }
+
+process BREAKPOINT_BED_SORT {
+
+    container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'
+
+    input:
+    path bedfile
+
+    output:
+    path "breakpoints.bed"
+
+    script:
+    """
+    bedtools sort -i ${bedfile} > breakpoints.bed
+    """
+}
