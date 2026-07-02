@@ -1,2 +1,0 @@
-task_id	hash	native_id	name	status	exit	submit	duration	realtime	%cpu	peak_rss	peak_vmem	rchar	wchar
-1	71/4623e3	7334	FILTER_CONTIGS	FAILED	1	2026-07-02 11:55:57.816	316ms	264ms	-	-	-	-	-
