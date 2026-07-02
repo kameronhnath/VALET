@@ -22,7 +22,7 @@ process RUN_BWA {
 
 process SAM_TO_BAM {
 
-    container 'biocontainers/samtools:v1.9-4-deb_cv1'
+    container 'kameronhn/samtools:latest'
 
     input:
     tuple val(bin_id), path(samfile)
@@ -38,7 +38,7 @@ process SAM_TO_BAM {
 
 process MATE_PAIR_CHECKER {
 
-    container 'quay.io/biocontainers/mulled-v2-480c331443a1d7f4cb82aa41315ac8ea4c9c0b45:3e0fc1ebdf2007459f18c33c65d38d2b031b0052-0'
+    container "docker.io/kameronhn/valet-python:latest"
 
     input:
     tuple val(bin_id), path(bin_path), path(bamfile)

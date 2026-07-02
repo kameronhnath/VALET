@@ -92,6 +92,8 @@ new_env/
 run_it.sh
 run_test.sh
 download_samples.sh
+test3/*
+test2/*
 
 #Nextflow
 nf/.nextflow/*

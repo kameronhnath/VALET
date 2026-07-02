@@ -5,12 +5,16 @@
  */
 process BIN_READS_AND_CONTIGS {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path samfile
     path coverage_file
     path assembly
     val threads
     val min_coverage
+    path reads_scriptfile
+    path contigs_scriptfile
 
     output:
     path "out/bins",    emit:bins
@@ -18,13 +22,13 @@ process BIN_READS_AND_CONTIGS {
 
     script:
     """
-    python ${projectDir}/../src/py/nf/bin_reads.py \
+    python ${reads_scriptfile} \
         --samfile ${samfile} \
         --coverage_file ${coverage_file} \
         --threads ${threads} \
         --min_coverage ${min_coverage}
 
-    python ${projectDir}/../src/py/nf/bin_contigs.py \
+    python ${contigs_scriptfile} \
         --assembly ${assembly} \
         --coverage_file ${coverage_file} \
         --threads ${threads} \

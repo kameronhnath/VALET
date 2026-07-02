@@ -2,16 +2,19 @@
 
 process DEPTH_OF_COVERAGE {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path chunk
     val window_size
+    path scriptfile
 
     output:
     path "${chunk}_errors_coverage.bed"   , emit:coverage_errrors
 
     script:
     """
-    python ${projectDir}/../src/py/nf/depth_of_coverage.py \
+    python ${scriptfile} \
         --mpileup-file ${chunk} \
         -o ${chunk}_errors_coverage.bed \
         -g -e \

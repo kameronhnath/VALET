@@ -170,38 +170,61 @@ def add_relocations(genome,num):
 # Write genome to file with fasta header
 def write_genome_to_file(genome,filepath):
     outfile = open(filepath + "contigs.fasta", "w")
-    outfile.write(">genome\n")
-    outfile.write(genome)
+    for i,contig in enumerate(genome):
+        outfile.write(">contig" + str(i+1) + "\n")
+        outfile.write(contig + "\n")
 
+# Split up the genome into a set number of contigs
+def split_to_contigs(genome, num_contigs):
+    if num_contigs <= 1:
+        return [genome]
+    len_per_contig = len(genome) // num_contigs
+    contigs = []
+    for i in range(0,num_contigs - 1):
+        contigs.append(genome[i*len_per_contig:(i+1)*len_per_contig])
+    contigs.append(genome[(num_contigs-1)*len_per_contig:])
+    return contigs
 
 def main():
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-o",
+        "-o", "--outfile",
         dest="file_path",
         default="./"
     )
 
     parser.add_argument(
-        "-s",
+        "-s", "--seed",
         dest="seed",
         default=0
     )
 
     # The volume errors argument lets the user tweak the amount of structural errors added to the genome after reads are drawn
     parser.add_argument(
-        "-e",
+        "-e", "--volume_errors",
         dest="volume_errors",
         default=1
+    )
+
+    parser.add_argument(
+        "-c", "--num_contigs",
+        dest="num_contigs",
+        default=0, type=int
+    )
+
+    parser.add_argument(
+        "-g", "--genome_size",
+        dest="genome_size",
+        default=5000000, type=int
     )
 
     args = parser.parse_args()
     e = int(args.volume_errors)
 
     # Create a random genome
-    genome = random_genome(10000000)
+    genome = random_genome(args.genome_size)
 
     # Draw reads from it
     reads_from_genome(
@@ -220,6 +243,9 @@ def main():
     genome = add_tandem_insertions(genome,e*8,500,1000)
     genome = add_duplications(genome,e*10,500,1000)
     genome = add_relocations(genome,e*3)
+
+    genome = split_to_contigs(genome, args.num_contigs)
+    
     write_genome_to_file(genome,args.file_path)
     
 

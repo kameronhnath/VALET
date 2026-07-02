@@ -5,16 +5,19 @@
  */
 process SPLIT_PILEUP {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path pileup
     val threads
+    path scriptfile
 
     output:
     path "${pileup}.*"   , emit:files
 
     script:
     """
-    python ${projectDir}/../src/py/split_pileup.py \
+    python ${scriptfile} \
         --pileup_file ${pileup} \
         --chunks ${threads}
     """

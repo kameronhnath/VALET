@@ -5,8 +5,11 @@
  */
 process BREAKPOINT_SPLITTER {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path unaligned
+    path script_file
 
     output:
     path "breakpoint_reads",    emit:breakpoint_reads
@@ -14,7 +17,7 @@ process BREAKPOINT_SPLITTER {
     script:
     """
     mkdir breakpoint_reads
-    python ${projectDir}/../src/py/nf/breakpoint_splitter.py \
+    python ${script_file} \
         --unaligned ${unaligned} \
         --output breakpoint_reads/
     """
@@ -22,7 +25,7 @@ process BREAKPOINT_SPLITTER {
 
 process BREAKPOINT_FINDER {
 
-    container 'quay.io/biocontainers/mulled-v2-da271c8774be2b8dbd760259a085347c47897e8b:3eba2b66b7b62c358a394d58655730a65ba3b4c8-0'
+    container 'docker.io/kameronhn/breakpoint:latest'
 
     input:
     path script_file

@@ -5,16 +5,19 @@
  */
 process CONTIG_COVERAGE {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path assembly
     path pileup
+    path scriptfile
 
     output:
     path "coverage"   , emit:coverage
 
     script:
     """
-    python ${projectDir}/../src/py/calculate_contig_coverage.py \
+    python ${scriptfile} \
         --pileup_file ${pileup} \
         --out_filename coverage
     """

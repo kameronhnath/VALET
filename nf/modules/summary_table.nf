@@ -12,6 +12,8 @@ process GENERATE_SUMMARY {
     path contig_lengths_file
     path contig_coverage
     path filtered_contigs
+    val ignore_end_distances
+    path scriptfile
 
     output:
     path "summary.bed"      , emit:summary_bed
@@ -19,7 +21,7 @@ process GENERATE_SUMMARY {
 
     script:
     """
-    python ${projectDir}/../src/py/nf/summary_table.py \
+    python ${scriptfile} \
         --coverage_bed ${coverage_bed} \
         --breakpoint_bed ${breakpoint_bed} \
         --matepair_bed ${matepair_bed} \
@@ -27,6 +29,7 @@ process GENERATE_SUMMARY {
         --summary_file summary.bed \
         --abundance_filename ${contig_coverage} \
         --filtered_contigs ${filtered_contigs} \
+        --ignore_end_distances ${ignore_end_distances} \
         --table_filename summary.tsv
     """
 }

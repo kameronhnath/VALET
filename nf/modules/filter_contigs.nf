@@ -5,8 +5,11 @@
  */
 process FILTER_CONTIGS {
 
+    container "docker.io/kameronhn/valet-python:latest"
+
     input:
     path assembly
+    path scriptfile
 
     output:
     path "filtered.fasta"       , emit:filtered_fasta
@@ -14,7 +17,7 @@ process FILTER_CONTIGS {
 
     script:
     """
-    python ${projectDir}/../src/py/filter_short_contigs.py \
+    python ${scriptfile} \
         --fasta_filename $assembly \
         --filtered_fasta_filename filtered.fasta \
         --length_filename contig_lengths.tsv

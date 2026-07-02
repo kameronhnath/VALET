@@ -18,17 +18,17 @@ include { FIND_SUSPICIOUS_REGIONS } from './modules/suspicious_regions.nf'
  * Pipeline parameters
  */
 
-// Primary input
-params {
-    assembly: Path
-    reads1: Path
-    reads2: Path
-    threads: Integer
-    window_size: Integer
-    breakpoint_bins: Integer
-    min_suspicious_regions: Integer
-    suspicious_flank_size: Integer
-}
+params.assembly = null
+params.reads1 = null
+params.reads2 = null
+
+params.threads = 4
+params.window_size = 501
+params.breakpoint_bins = 50
+params.min_suspicious_regions = 2
+params.suspicious_flank_size = 1000
+params.min_coverage = 10
+params.ignore_end_distances = 150
 
 workflow {
 
@@ -36,29 +36,33 @@ workflow {
 
     // Call processes
 
+    params.each { key, value ->
+        println "${key}: ${value}"
+    }
+
     assembly = params.assembly
 
-    FILTER_CONTIGS(assembly)
+    FILTER_CONTIGS(assembly, "${projectDir}/../src/py/filter_short_contigs.py")
 
     RUN_BOWTIE(assembly, FILTER_CONTIGS.out.filtered_fasta, params.reads1, params.reads2)
 
-    CONTIG_LENGTHS(RUN_BOWTIE.out.sam)
+    CONTIG_LENGTHS(RUN_BOWTIE.out.sam, "${projectDir}/../src/py/get_contig_lengths.py")
 
     RUN_SAMTOOLS(assembly, RUN_BOWTIE.out.sam)
 
-    CONTIG_COVERAGE(assembly, RUN_SAMTOOLS.out.pileup)
+    CONTIG_COVERAGE(assembly, RUN_SAMTOOLS.out.pileup, "${projectDir}/../src/py/calculate_contig_coverage.py")
 
-    SPLIT_PILEUP(RUN_SAMTOOLS.out.pileup, params.threads)
+    SPLIT_PILEUP(RUN_SAMTOOLS.out.pileup, params.threads, "${projectDir}/../src/py/split_pileup.py")
 
     chunks_ch = SPLIT_PILEUP.out.files.flatten()
 
-    DEPTH_OF_COVERAGE(chunks_ch, params.window_size)
+    DEPTH_OF_COVERAGE(chunks_ch, params.window_size, "${projectDir}/../src/py/nf/depth_of_coverage.py")
 
     merged_coverage_error_bed = DEPTH_OF_COVERAGE.out.coverage_errrors.collect()
 
     MERGE_BEDS_COVERAGE(merged_coverage_error_bed)
 
-    BREAKPOINT_SPLITTER(RUN_BOWTIE.out.unaligned_reads)
+    BREAKPOINT_SPLITTER(RUN_BOWTIE.out.unaligned_reads, "${projectDir}/../src/py/nf/breakpoint_splitter.py")
 
     BREAKPOINT_FINDER(
         "${projectDir}/../src/py/nf/breakpoint_finder.py",
@@ -76,7 +80,9 @@ workflow {
         CONTIG_COVERAGE.out.coverage,
         FILTER_CONTIGS.out.filtered_fasta,
         params.threads,
-        10
+        params.min_coverage,
+        "${projectDir}/../src/py/nf/bin_reads.py",
+        "${projectDir}/../src/py/nf/bin_contigs.py"
     )
 
     bin_channel = BIN_READS_AND_CONTIGS.out.bin_dirs.flatten().filter{ path -> path.isDirectory() }.map { dir -> tuple(dir.name, dir) }
@@ -97,29 +103,39 @@ workflow {
         MERGE_BEDS_MATE_ERROR.out,
         CONTIG_LENGTHS.out.contig_lengths,
         CONTIG_COVERAGE.out.coverage,
-        FILTER_CONTIGS.out.contig_lengths
+        FILTER_CONTIGS.out.contig_lengths,
+        params.ignore_end_distances,
+        "${projectDir}/../src/py/nf/summary_table.py"
     )
 
     FIND_SUSPICIOUS_REGIONS(GENERATE_SUMMARY.out.summary_bed, params.suspicious_flank_size, params.min_suspicious_regions)
 
     
-
     publish:
-    index = RUN_BOWTIE.out.index
-    splits = BREAKPOINT_SPLITTER.out.breakpoint_reads
+    suspicious = FIND_SUSPICIOUS_REGIONS.out
     summary = GENERATE_SUMMARY.out.summary_bed
+    coverage = MERGE_BEDS_COVERAGE.out.merged_bed
+    breakpoint = BREAKPOINT_BED_SORT.out
+    mate_error = MERGE_BEDS_MATE_ERROR.out
 
 }
 
 output {
 
-    index {
-        path 'index'
-    }
-    splits {
-        path 'splits'
+    suspicious {
+        path 'suspicious'
     }
     summary {
         path 'summary'
     }
+    coverage {
+        path 'coverage'
+    }
+    breakpoint {
+        path 'breakpoint'
+    }
+    mate_error {
+        path 'mate_error'
+    }
+    
 }

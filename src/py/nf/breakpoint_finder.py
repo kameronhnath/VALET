@@ -160,6 +160,10 @@ class BreakpointFinder:
         should_pass = {}
         b_c_d = {}
         b_c_d_r = {}
+        if self.number_of_reads == 0:
+            print("No breakpoint reads found. Skipping breakpoint analysis.")
+            open(os.path.join(self.breakpoint_dir, "interesting_bins.bed"), "w").close()
+            return
         warning("About to assemble surviving bins.")
         ave_read_len = self.average_read_length / float(self.number_of_reads)
         warning("Beginning pass_1")

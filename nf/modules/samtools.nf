@@ -5,7 +5,7 @@
  */
 process RUN_SAMTOOLS {
 
-    container 'biocontainers/samtools:v1.9-4-deb_cv1'
+    container 'kameronhn/samtools:latest'
 
     input:
     path assembly
