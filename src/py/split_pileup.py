@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 
 from optparse import OptionParser
-import os
-import re
-import sys
 
 
 def setup_options():
     parser = OptionParser()
-    parser.add_option("-p", "--pileup-file", dest="pileup_filename", help="pileup file name", metavar="FILE")
-    parser.add_option("-o", "--output", dest="output_location", help="output location for depth of coverage tool", default=None, metavar="FILE")
+    parser.add_option("-p", "--pileup_file", dest="pileup_filename", help="pileup file name", metavar="FILE")
     parser.add_option("-c", "--chunks", dest="total_chunks", help="total chunks to split the pileup file.", type="int", default = 1)
     
     (options,args) = parser.parse_args()

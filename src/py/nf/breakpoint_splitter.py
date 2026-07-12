@@ -18,17 +18,15 @@ class ReadsSplitter:
 
     def getOptions(self):
         parser = OptionParser()
-        parser.add_option("-u", "--unaligned", dest="unaligned_dir", \
-                help="Unaligned read directory", metavar="DIR")
+        parser.add_option("-u", "--unaligned", dest="unaligned_file", \
+                help="Unaligned read file", metavar="DIR")
         parser.add_option("-o", "--output", dest="output_dir",\
-                help="Directory for output", metavar="DIR")
+                help="Directory for output", metavar="DIR",\
+                default="data/output/breakpoints/reads")
 
         (options, args) = parser.parse_args()
         self.options = options
-        if options.unaligned_dir:
-            for file_name in os.listdir(options.unaligned_dir):
-                if 'unaligned' in file_name:
-                    self.files_to_split.append(options.unaligned_dir + file_name)
+        self.files_to_split.append(options.unaligned_file)
                 
     def splitFile(self, fn):
         if not os.path.isfile(fn):
