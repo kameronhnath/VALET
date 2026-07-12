@@ -3,6 +3,14 @@ from pathlib import Path
 import math
 import argparse
 
+# Python script to generate test data for valet. Generates a genome and draws reads from it given some parameters. Then adds errors to the genome and tracks those errors.
+##  ARGS:
+##      -o (--outfile)          -> output directory
+##      -s (--seed)             -> seed for RNG to ensure consistent outputs
+##      -e (--volume_errors)    -> number of errors added per contig
+##      -c (--num_contigs)      -> number of contigs
+##      -g (--size)             -> length of each contig
+
 # Generate a random string of nucleotides
 def random_genome(length):
     return ''.join(random.choices('ACGT', k=length))
@@ -39,9 +47,7 @@ def create_regions(length, num, min_size, max_size):
 # Given a 'genome' randomly generate paired reads. 
 ##  Reads are drawn from random intervals within the genome.
 ##  Coverage deterimines how many reads are generated.
-##  The seed parameter is used to seed the rng.
 ##  Mean and sd insert are used to determine the random size of the reads.
-##  Reads are written to fasta files in the outfile path.
 ##  Low-coverage regions can be added that have a lower chance of reads being drawn.
 def reads_from_genome(
         genome,
@@ -125,7 +131,6 @@ def main():
         default=0
     )
 
-    # The volume errors argument lets the user tweak the amount of structural errors added to the genome after reads are drawn
     parser.add_argument(
         "-e", "--volume_errors",
         dest="volume_errors",
@@ -147,6 +152,7 @@ def main():
     args = parser.parse_args()
     e = int(args.volume_errors)
 
+    # Open read files
     r1_file = open(args.file_path + "R1.fastq", "w")
     r2_file = open(args.file_path + "R2.fastq", "w")
     
@@ -156,14 +162,20 @@ def main():
     errors = []
     for i in range(1,args.num_contigs+1):
 
+        # Generate genome (for the contig)
         genome = random_genome(args.size)
-        coverage = random.randint(15,25)
 
+        # Determine a random coverage value
+        coverage = random.randint(10,90)
+
+        # Generate error regions
         error_regions = create_regions(len(genome),e,1000,1500)
 
+        # Draw low-coverage regions from the error regions
         num_low_coverage_regions = math.floor(e / 5)
         low_coverage_regions = error_regions[:num_low_coverage_regions]
 
+        # Generate the reads using the random coverage value, label the contig with the current index
         low_coverage_regions = reads_from_genome(
             genome=genome,
             r1_file=r1_file,
@@ -174,8 +186,7 @@ def main():
             sd_insert=50,
             low_coverage_regions=low_coverage_regions)
         
-        
-
+        # Add errors records for the low coverage regions
         contig_errors = []
         for start, end in low_coverage_regions:
             contig_errors.append({
@@ -185,7 +196,10 @@ def main():
                 "end":end
             })
 
+        # Add the remaining erros
         for start, end in error_regions:
+
+            # Pick an error type
             error_type = random.choice([
                 "deletion",
                 "inversion",

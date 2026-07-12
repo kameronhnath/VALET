@@ -1,5 +1,9 @@
 #!/usr/bin/env nextflow
 
+
+/*
+ * Detect suspicious regions given the error signals
+ */
 process FIND_SUSPICIOUS_REGIONS {
 
     container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'

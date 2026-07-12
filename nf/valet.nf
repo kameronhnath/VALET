@@ -1,6 +1,5 @@
 #!/usr/bin/env nextflow
 
-// Module INCLUDE statements
 include { FILTER_CONTIGS } from './modules/filter_contigs.nf'
 include { RUN_BOWTIE } from './modules/bowtie.nf'
 include { CONTIG_LENGTHS } from './modules/contig_lengths.nf'
@@ -26,25 +25,25 @@ params.threads = 4
 params.window_size = 501
 params.breakpoint_bins = 50
 params.min_suspicious_regions = 2
-params.suspicious_flank_size = 1000
-params.min_coverage = 10
-params.ignore_end_distances = 150
+params.suspicious_flank_size = 0 //1000
+params.min_coverage = 10 // 10
+params.ignore_end_distances = 0 //150
 
 workflow {
 
     main:
 
-    // Call processes
-
+    // Print params
     params.each { key, value ->
         println "${key}: ${value}"
     }
 
-    assembly = params.assembly
+    // Grab assembly file
+    assembly = file(params.assembly)
 
     FILTER_CONTIGS(assembly, "${projectDir}/../src/py/filter_short_contigs.py")
 
-    RUN_BOWTIE(assembly, FILTER_CONTIGS.out.filtered_fasta, params.reads1, params.reads2)
+    RUN_BOWTIE(assembly, FILTER_CONTIGS.out.filtered_fasta, file(params.reads1), file(params.reads2))
 
     CONTIG_LENGTHS(RUN_BOWTIE.out.sam, "${projectDir}/../src/py/get_contig_lengths.py")
 
@@ -76,7 +75,7 @@ workflow {
     BREAKPOINT_BED_SORT(BREAKPOINT_FINDER.out.breakpoint_bins)
 
     BIN_READS_AND_CONTIGS(
-        RUN_BOWTIE.out.sam,
+        RUN_BOWTIE.out.paired_sam,
         CONTIG_COVERAGE.out.coverage,
         FILTER_CONTIGS.out.filtered_fasta,
         params.threads,
@@ -85,6 +84,7 @@ workflow {
         "${projectDir}/../src/py/nf/bin_contigs.py"
     )
 
+    // Convert bins into a channel
     bin_channel = BIN_READS_AND_CONTIGS.out.bin_dirs.flatten().filter{ path -> path.isDirectory() }.map { dir -> tuple(dir.name, dir) }
 
     RUN_BWA(bin_channel)
@@ -117,6 +117,8 @@ workflow {
     coverage = MERGE_BEDS_COVERAGE.out.merged_bed
     breakpoint = BREAKPOINT_BED_SORT.out
     mate_error = MERGE_BEDS_MATE_ERROR.out
+    summary_table = GENERATE_SUMMARY.out.summary_table
+    alignment = RUN_SAMTOOLS.out.sorted_bam
 
 }
 
@@ -129,13 +131,19 @@ output {
         path 'summary'
     }
     coverage {
-        path 'coverage'
+        path 'results'
     }
     breakpoint {
-        path 'breakpoint'
+        path 'results'
     }
     mate_error {
-        path 'mate_error'
+        path 'results'
+    }
+    summary_table {
+        path 'summary_table'
+    }
+    alignment {
+        path 'results'
     }
     
 }

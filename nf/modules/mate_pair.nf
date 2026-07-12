@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 /*
- * Processes for the mate pair process
+ * Align the binned reads (by coverage)
  */
 process RUN_BWA {
 
@@ -20,6 +20,9 @@ process RUN_BWA {
     """
 }
 
+/*
+ * Convert the alignment file to bam
+ */
 process SAM_TO_BAM {
 
     container 'kameronhn/samtools:latest'
@@ -36,6 +39,9 @@ process SAM_TO_BAM {
     """
 }
 
+/*
+ * Run the mate pair checker
+ */
 process MATE_PAIR_CHECKER {
 
     container "docker.io/kameronhn/valet-python:latest"
@@ -60,6 +66,9 @@ process MATE_PAIR_CHECKER {
 
 }
 
+/*
+ * Merge the resulting bed files
+ */
 process MERGE_BEDS_MATE_ERROR {
 
     container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'

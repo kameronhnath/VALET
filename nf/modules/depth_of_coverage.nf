@@ -1,5 +1,8 @@
 #!/usr/bin/env nextflow
 
+/*
+ * Determine the depth of coverage
+ */
 process DEPTH_OF_COVERAGE {
 
     container "docker.io/kameronhn/valet-python:latest"
@@ -22,6 +25,9 @@ process DEPTH_OF_COVERAGE {
     """
 }
 
+/*
+ * Merge the bed outputs if split into chunks
+ */
 process MERGE_BEDS_COVERAGE {
 
     container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'

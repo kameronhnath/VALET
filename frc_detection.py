@@ -1,11 +1,11 @@
 import argparse
 import os
 
-### Script to detect errors with a Valet summary file and an errors.bed file generated form test_data_generator_v2.py
+### Script to detect errors with an FRC output file and an errors.bed file generated form test_data_generator_v2.py
 
 ### ARGS:
 ##      -g -> Ground truth error file from test_data_generator_v2.py
-##      -v -> Valet summary.bed file
+##      -v -> Error file from frc 
 ##      -l -> Label to give the current run (i.e. seed number used to gen the data)
 ##      -f -> Output filename; Can be provided to output the results in a tabular format
 
@@ -23,6 +23,20 @@ def read_bed(bedfile):
 
     return errors
 
+def readFRC(frcfile):
+    errors = []
+
+    with open(frcfile) as f:
+        for line in f:
+            if not line.strip():
+                continue
+
+            cols = line.rstrip().split(" ")
+
+            errors.append((cols[0],int(cols[2]),int(cols[3]),cols[1]))
+
+    return errors
+
 
 def main():
 
@@ -34,8 +48,8 @@ def main():
     )
 
     parser.add_argument(
-        "-v", "--valet_bed",
-        dest="valet_bed"
+        "-v", "--frc_bed",
+        dest="frc_bed"
     )
 
     parser.add_argument(
@@ -50,7 +64,7 @@ def main():
 
     args = parser.parse_args()
     real_errors = read_bed(args.ground_truth)
-    valet_errors = read_bed(args.valet_bed)
+    frc_errors = readFRC(args.frc_bed)
 
     valid_preds = set()
     detected_errors = set()
@@ -82,7 +96,7 @@ def main():
 
     
     # Search for each predicted error in the real errors
-    for i,pred_error in enumerate(valet_errors):
+    for i,pred_error in enumerate(frc_errors):
         for j,real_error in enumerate(real_errors):
             center = (real_error[1] + real_error[2]) / 2
             
@@ -113,7 +127,7 @@ def main():
                         d_de.add(j)
 
     # Print results
-    print(str(len(valid_preds)) + " valid preds out of " + str(len(valet_errors)) + " total errors.")
+    print(str(len(valid_preds)) + " valid preds out of " + str(len(frc_errors)) + " total errors.")
     print(str(len(detected_errors)) + " detected errors out of " + str(len(real_errors)) + " real simulated errors.")
     print(str(len(d_i)) + " / " + str(t_i) + " inversions")
     print(str(len(d_lc)) + " / " + str(t_lc) + " low-coverage")
@@ -140,7 +154,7 @@ def main():
         with open(args.filename, "a") as f:
             f.write(
                 f"{args.label}\t"
-                f"{len(valid_preds)}\t{len(valet_errors)}\t{safe(len(valid_preds), len(valet_errors)):.3f}\t"
+                f"{len(valid_preds)}\t{len(frc_errors)}\t{safe(len(valid_preds), len(frc_errors)):.3f}\t"
                 f"{len(detected_errors)}\t{len(real_errors)}\t{safe(len(detected_errors), len(real_errors)):.3f}\t"
                 f"{len(d_i)}\t{t_i}\t{safe(len(d_i), t_i):.3f}\t"
                 f"{len(d_lc)}\t{t_lc}\t{safe(len(d_lc), t_lc):.3f}\t"

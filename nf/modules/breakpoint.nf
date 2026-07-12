@@ -23,6 +23,9 @@ process BREAKPOINT_SPLITTER {
     """
 }
 
+/*
+ * Run the breakpoint finder script
+ */
 process BREAKPOINT_FINDER {
 
     container 'docker.io/kameronhn/breakpoint:latest'
@@ -52,6 +55,9 @@ process BREAKPOINT_FINDER {
     """
 }
 
+/*
+ * Sort the bed file output
+ */
 process BREAKPOINT_BED_SORT {
 
     container 'quay.io/biocontainers/bedtools:2.31.1--hf5e1c6e_0'

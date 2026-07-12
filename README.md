@@ -1,5 +1,45 @@
-#VALET
+# VALET
 Pipeline for evaulating metagenomic assemblies.
+
+
+# NEXTFLOW PIPELINE
+
+Valet has been updated to run as a nextflow pipeline. Nextflow can be installed via conda: `conda install bioconda::nextflow`, or via their [website](https://docs.seqera.io/nextflow/install).
+
+No additional installation required, the pipeline runs entirely through containers.
+
+There is a test config to verify your valet installation:
+```
+cd nf
+nextflow valet.nf -profile test
+```
+
+Additional profiles can be set up in the `nf/nextflow.config` file. The `cluster` config is set up to run the valet pipeline on a cluster environment with slurm. The pipeline will queue a job for each process, enabling significant parallelization. In particular, the mate pair checker will submit one job for each bin.
+
+To run the pipleine for multiple assemblies, and generate comparison files, the script `nf/multiple_assemblies.py` can be used:
+```
+python multiple_assemblies.py \
+  -r1 data/lib1.1.fastq \ 
+  -r2 data/lib1.2.fastq \
+  -a data/c_rudii_dup.fna,data/c_rudii_reference.fna \
+  -n dup,ref \
+  -p test \
+  -o ../test_data/
+```
+
+To set custom parameters in the command line:
+- --assembly &rarr; assembly file
+- --reads1
+- --reads2
+- --threads &rarr; number of threads
+- --window_size
+- --breakpoint_bins
+- --min_suspicious_regions
+- --suspicious_flank_size
+- --min_coverage
+- --ignore_end_distances
+
+# LEGACY DETAILS
 
 ## Prerequisites
 Installing prequisite tools:

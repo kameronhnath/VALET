@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 /*
- * Dict of contig lengths.
+ * Return a dict of contig lengths.
  */
 process CONTIG_LENGTHS {
 

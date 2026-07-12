@@ -1,9 +1,11 @@
 #!/usr/bin/env nextflow
 
 /*
- * Generate a summary file and summary table
+ * Generate a summary file (with all of the errors merged together) and summary table
  */
 process GENERATE_SUMMARY {
+
+    container "docker.io/kameronhn/valet-python:latest"
 
     input:
     path coverage_bed

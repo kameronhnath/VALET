@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 /*
- * Runs the samtools commands as part of the pipeline
+ * Runs the samtools commands for the initial alignment
  */
 process RUN_SAMTOOLS {
 
