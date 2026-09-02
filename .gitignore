@@ -104,6 +104,7 @@ nf/.nextflow/*
 work/*
 results/*
 nf/data/*
+trace.tsv
 
 !nf/data/lib1.1.fastq
 !nf/data/lib1.2.fastq
