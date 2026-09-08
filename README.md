@@ -16,6 +16,12 @@ nextflow valet.nf -profile test
 
 Additional profiles can be set up in the `nf/nextflow.config` file. The `cluster` config is set up to run the valet pipeline on a cluster environment with slurm. The pipeline will queue a job for each process, enabling significant parallelization. In particular, the mate pair checker will submit one job for each bin.
 
+To run the `cluster` profile, please set your scratch directory to the workDir on line 38 of the config file.
+
+```
+nextflow valet.nf -profile slurm --assembly [path_to_assembly_file] --reads1 [path_to_formward_reads] --reads2 [path_to_reverse_reads]
+```
+
 To run the pipleine for multiple assemblies, and generate comparison files, the script `nf/multiple_assemblies.py` can be used:
 ```
 python multiple_assemblies.py \

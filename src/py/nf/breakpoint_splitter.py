@@ -56,15 +56,37 @@ class ReadsSplitter:
             l_2 = int(l - l_1)
             
             # left
-            h1_1 = h1 + "/1\n"
-            read_contents_1 =  read_contents[0:l_1] + "\n"
-            h2_1 = h2 + "/1\n"
+            h1_parts = h1.split(None, 1)
+            h1_1 = h1_parts[0] + "/1"
+            if len(h1_parts) > 1:
+                h1_1 += " " + h1_parts[1]
+            h1_1 += "\n"
+
+            read_contents_1 = read_contents[0:l_1] + "\n"
+
+            h2_parts = h2.split(None, 1)
+            h2_1 = h2_parts[0] + "/1"
+            if len(h2_parts) > 1:
+                h2_1 += " " + h2_parts[1]
+            h2_1 += "\n"
+
             read_quality_1 = read_quality[0:l_1] + "\n"
-            
+
             # right
-            h1_2 = h1 + "/2\n"
-            read_contents_2 = read_contents[l_2:]+ "\n"
-            h2_2 = h2 + "/2\n"
+            h1_parts = h1.split(None, 1)
+            h1_2 = h1_parts[0] + "/2"
+            if len(h1_parts) > 1:
+                h1_2 += " " + h1_parts[1]
+            h1_2 += "\n"
+
+            read_contents_2 = read_contents[l_2:] + "\n"
+
+            h2_parts = h2.split(None, 1)
+            h2_2 = h2_parts[0] + "/2"
+            if len(h2_parts) > 1:
+                h2_2 += " " + h2_parts[1]
+            h2_2 += "\n"
+
             read_quality_2 = read_quality[l_2:] + "\n"
 
             r_o_1.write(h1_1)
